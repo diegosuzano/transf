@@ -25,7 +25,7 @@ credenciais_dict = {
     "universe_domain": "googleapis.com"
 }
 
-.from_json_keyfile_dict(credenciais_dict, scope)
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credenciais_dict, scope)
 client = gspread.authorize(creds)
 
 # ID da planilha e nome da aba
