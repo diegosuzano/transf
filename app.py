@@ -1,14 +1,23 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import os
+import gspread
+from oauth2client.service_account import ServiceAccountCredentials
 
-# Caminho do arquivo Excel existente
-EXCEL_PATH = "Controle Transferencia.xlsx"
-SHEET_NAME = "Basae"
-
+# Configuração da página
 st.set_page_config(page_title="Registro Transferência", layout="centered")
 st.title("🚚 Registro de Transferência de Carga")
+
+# Caminho do arquivo de credenciais e ID da planilha
+CRED_PATH = "credenciais.json"
+SHEET_ID = "COLE_AQUI_O_ID_DA_SUA_PLANILHA"  # Substitua pelo ID real da planilha
+SHEET_NAME = "Página1"  # Nome da aba da planilha
+
+# Autenticação com Google Sheets
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+creds = ServiceAccountCredentials.from_json_keyfile_name(CRED_PATH, scope)
+client = gspread.authorize(creds)
+sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
 
 # Função para registrar timestamp atual
 def registrar_tempo(label):
@@ -32,7 +41,7 @@ data = st.date_input("Data", value=datetime.today())
 placa = st.text_input("Placa do caminhão")
 conferente = st.text_input("Nome do conferente")
 
-# Campos com botoes
+# Campos com botões
 st.subheader("Fábrica")
 for campo in campos_tempo[:7]:
     registrar_tempo(campo)
@@ -52,7 +61,6 @@ def calc_tempo(fim, inicio):
     except:
         return ""
 
-# Campos calculados
 tempo_carreg = calc_tempo("Fim carregamento", "Início carregamento")
 tempo_espera = calc_tempo("Encostou na doca Fábrica", "Entrada na Fábrica")
 tempo_total = calc_tempo("Saída do pátio", "Entrada na Fábrica")
@@ -63,28 +71,14 @@ tempo_percurso = calc_tempo("Entrada CD", "Saída do pátio")
 
 # Botão para salvar
 if st.button("✅ Salvar Registro"):
-    nova_linha = {
-        "Data": data,
-        "Placa do caminhão": placa,
-        "Nome do conferente": conferente,
-        **{campo: st.session_state[campo] for campo in campos_tempo},
-        "Tempo de Carregamento": tempo_carreg,
-        "Tempo Espera Doca": tempo_espera,
-        "Tempo Total": tempo_total,
-        "Tempo de Descarregamento CD": tempo_descarga,
-        "Tempo Espera Doca CD": tempo_espera_cd,
-        "Tempo Total CD": tempo_total_cd,
-        "Tempo Percurso Para CD": tempo_percurso,
-    }
-    if os.path.exists(EXCEL_PATH):
-        df_existente = pd.read_excel(EXCEL_PATH, sheet_name=SHEET_NAME)
-        df_novo = pd.concat([df_existente, pd.DataFrame([nova_linha])], ignore_index=True)
-    else:
-        df_novo = pd.DataFrame([nova_linha])
+    nova_linha = [
+        str(data), placa, conferente,
+        *[st.session_state[campo] for campo in campos_tempo],
+        tempo_carreg, tempo_espera, tempo_total,
+        tempo_descarga, tempo_espera_cd, tempo_total_cd, tempo_percurso
+    ]
 
-    with pd.ExcelWriter(EXCEL_PATH, engine="openpyxl", mode="w") as writer:
-        df_novo.to_excel(writer, sheet_name=SHEET_NAME, index=False)
-
+    sheet.append_row(nova_linha)
     st.success("Registro salvo com sucesso!")
 
     # Resetar campos
