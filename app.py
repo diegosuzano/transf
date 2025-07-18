@@ -1,45 +1,38 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+import os
 
-# ======== CONFIGURAÇÃO STREAMLIT ========
+# Caminho do arquivo Excel existente
+EXCEL_PATH = "Controle Transferencia.xlsx"
+SHEET_NAME = "Basae"
+
 st.set_page_config(page_title="Registro Transferência", layout="centered")
 st.title("🚚 Registro de Transferência de Carga")
 
-# ======== CONEXÃO COM GOOGLE SHEETS ========
-def conectar_google_sheets():
-    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-    creds = ServiceAccountCredentials.from_json_keyfile_name("credenciais.json", scope)
-    client = gspread.authorize(creds)
-    planilha = client.open("Controle Transferencia")
-    aba = planilha.sheet1  # ou planilha.worksheet("Página1") se a aba tiver outro nome
-    return aba
+# Função para registrar timestamp atual
+def registrar_tempo(label):
+    if st.button(f"Registrar {label}"):
+        st.session_state[label] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# ======== CAMPOS ========
+# Inicializar variáveis de sessão
 campos_tempo = [
     "Entrada na Fábrica", "Encostou na doca Fábrica", "Início carregamento", "Fim carregamento",
     "Faturado", "Amarração carga", "Saída do pátio", "Entrada CD", "Encostou na doca CD",
     "Início Descarregamento CD", "Fim Descarregamento CD", "Saída CD"
 ]
 
-# ======== INICIALIZAR CAMPOS DE SESSÃO ========
 for campo in campos_tempo:
     if campo not in st.session_state:
         st.session_state[campo] = ""
 
-# ======== CAMPOS MANUAIS ========
+# Campos manuais
 st.subheader("Dados do Veículo")
 data = st.date_input("Data", value=datetime.today())
 placa = st.text_input("Placa do caminhão")
 conferente = st.text_input("Nome do conferente")
 
-# ======== BOTÕES DE REGISTRO DE TEMPO ========
-def registrar_tempo(label):
-    if st.button(f"Registrar {label}"):
-        st.session_state[label] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
+# Campos com botoes
 st.subheader("Fábrica")
 for campo in campos_tempo[:7]:
     registrar_tempo(campo)
@@ -50,7 +43,7 @@ for campo in campos_tempo[7:]:
     registrar_tempo(campo)
     st.text_input(campo, value=st.session_state[campo], disabled=True)
 
-# ======== CÁLCULO DE TEMPOS ========
+# Calcular tempos automáticos
 def calc_tempo(fim, inicio):
     try:
         t1 = datetime.strptime(st.session_state[fim], "%Y-%m-%d %H:%M:%S")
@@ -59,6 +52,7 @@ def calc_tempo(fim, inicio):
     except:
         return ""
 
+# Campos calculados
 tempo_carreg = calc_tempo("Fim carregamento", "Início carregamento")
 tempo_espera = calc_tempo("Encostou na doca Fábrica", "Entrada na Fábrica")
 tempo_total = calc_tempo("Saída do pátio", "Entrada na Fábrica")
@@ -67,29 +61,33 @@ tempo_espera_cd = calc_tempo("Encostou na doca CD", "Entrada CD")
 tempo_total_cd = calc_tempo("Saída CD", "Entrada CD")
 tempo_percurso = calc_tempo("Entrada CD", "Saída do pátio")
 
-# ======== BOTÃO DE SALVAR ========
+# Botão para salvar
 if st.button("✅ Salvar Registro"):
-    nova_linha = [
-        str(data),
-        placa,
-        conferente,
-        *[st.session_state[campo] for campo in campos_tempo],
-        tempo_carreg,
-        tempo_espera,
-        tempo_total,
-        tempo_descarga,
-        tempo_espera_cd,
-        tempo_total_cd,
-        tempo_percurso,
-    ]
+    nova_linha = {
+        "Data": data,
+        "Placa do caminhão": placa,
+        "Nome do conferente": conferente,
+        **{campo: st.session_state[campo] for campo in campos_tempo},
+        "Tempo de Carregamento": tempo_carreg,
+        "Tempo Espera Doca": tempo_espera,
+        "Tempo Total": tempo_total,
+        "Tempo de Descarregamento CD": tempo_descarga,
+        "Tempo Espera Doca CD": tempo_espera_cd,
+        "Tempo Total CD": tempo_total_cd,
+        "Tempo Percurso Para CD": tempo_percurso,
+    }
 
-    try:
-        aba = conectar_google_sheets()
-        aba.append_row(nova_linha)
-        st.success("Registro salvo com sucesso!")
+    if os.path.exists(EXCEL_PATH):
+        df_existente = pd.read_excel(EXCEL_PATH, sheet_name=SHEET_NAME)
+        df_novo = pd.concat([df_existente, pd.DataFrame([nova_linha])], ignore_index=True)
+    else:
+        df_novo = pd.DataFrame([nova_linha])
 
-        # Resetar campos
-        for campo in campos_tempo:
-            st.session_state[campo] = ""
-    except Exception as e:
-        st.error(f"Erro ao salvar na planilha: {e}")
+    with pd.ExcelWriter(EXCEL_PATH, engine="openpyxl", mode="w") as writer:
+        df_novo.to_excel(writer, sheet_name=SHEET_NAME, index=False)
+
+    st.success("Registro salvo com sucesso!")
+
+    # Resetar campos
+    for campo in campos_tempo:
+        st.session_state[campo] = ""
