@@ -35,21 +35,28 @@ sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
 
 # Função para registrar timestamp atual
 def registrar_tempo(label):
-    if st.button(f"pos_tempo = [
+    if st.button(f"Registrar {label}"):
+        st.session_state[label] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# Campos de tempo
+campos_tempo = [
     "Entrada na Fábrica", "Encostou na doca Fábrica", "Início carregamento", "Fim carregamento",
-    "Faturado", "Amarração carga", "Saída do pátio", "Entrada CD", "Encostou na doca CD",
+   arração carga", "Saída do pátio", "Entrada CD", "Encostou na doca CD",
     "Início Descarregamento CD", "Fim Descarregamento CD", "Saída CD"
 ]
 
+# Inicializar variáveis de sessão
 for campo in campos_tempo:
     if campo not in st.session_state:
         st.session_state[campo] = ""
 
+# Campos manuais
 st.subheader("Dados do Veículo")
 data = st.date_input("Data", value=datetime.today())
 placa = st.text_input("Placa do caminhão")
 conferente = st.text_input("Nome do conferente")
 
+# Campos com botões
 st.subheader("Fábrica")
 for campo in campos_tempo[:7]:
     registrar_tempo(campo)
@@ -60,6 +67,7 @@ for campo in campos_tempo[7:]:
     registrar_tempo(campo)
     st.text_input(campo, value=st.session_state[campo], disabled=True)
 
+# Calcular tempos automáticos
 def calc_tempo(fim, inicio):
     try:
         t1 = datetime.strptime(st.session_state[fim], "%Y-%m-%d %H:%M:%S")
@@ -76,6 +84,7 @@ tempo_espera_cd = calc_tempo("Encostou na doca CD", "Entrada CD")
 tempo_total_cd = calc_tempo("Saída CD", "Entrada CD")
 tempo_percurso = calc_tempo("Entrada CD", "Saída do pátio")
 
+# Botão para salvar
 if st.button("✅ Salvar Registro"):
     nova_linha = [
         str(data), placa, conferente,
@@ -89,4 +98,3 @@ if st.button("✅ Salvar Registro"):
 
     for campo in campos_tempo:
         st.session_state[campo] = ""
-
