@@ -76,7 +76,6 @@ if st.button("✅ Salvar Registro"):
         "Tempo Total CD": tempo_total_cd,
         "Tempo Percurso Para CD": tempo_percurso,
     }
-
     if os.path.exists(EXCEL_PATH):
         df_existente = pd.read_excel(EXCEL_PATH, sheet_name=SHEET_NAME)
         df_novo = pd.concat([df_existente, pd.DataFrame([nova_linha])], ignore_index=True)
