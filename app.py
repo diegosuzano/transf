@@ -10,7 +10,7 @@ st.title("🚚 Registro de Transferência de Carga")
 
 # Caminho do arquivo de credenciais e ID da planilha
 CRED_PATH = "credenciais.json"
-SHEET_ID = "COLE_AQUI_O_ID_DA_SUA_PLANILHA"  # Substitua pelo ID real da planilha
+SHEET_ID = "1wlPpdjqAXwLfrYqnOp1AE9Ez_gTrcYcT3AD9VB6sMAY"  # Substitua pelo ID real da planilha
 SHEET_NAME = "Página1"  # Nome da aba da planilha
 
 # Autenticação com Google Sheets
