@@ -66,38 +66,43 @@ tempo_percurso = calc_tempo("Entrada CD", "Saída do pátio")
 
 # Função para enviar para o GitHub com log de erro
 def enviar_para_github(caminho_arquivo, repo, caminho_repo, token):
-    with open(caminho_arquivo, "rb") as f:
-        conteudo = f.read()
-    conteudo_b64 = base64.b64encode(conteudo).decode("utf-8")
+    try:
+        with open(caminho_arquivo, "rb") as f:
+            conteudo = f.read()
+        conteudo_b64 = base64.b64encode(conteudo).decode("utf-8")
 
-    url = f"https://api.github.com/repos/{repo}/contents/{caminho_repo}"
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json"
-    }
+        url = f"https://api.github.com/repos/{repo}/contents/{caminho_repo}"
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
+        }
 
-    # Verificar se o arquivo já existe
-    response = requests.get(url, headers=headers)
-    sha = response.json()["sha"] if response.status_code == 200 else None
+        # Verificar se o arquivo já existe
+        response = requests.get(url, headers=headers)
+        sha = response.json()["sha"] if response.status_code == 200 else None
 
-    payload = {
-        "message": "Atualização automática da planilha",
-        "content": conteudo_b64,
-        "branch": "main"
-    }
-    if sha:
-        payload["sha"] = sha
+        payload = {
+            "message": "Atualização automática da planilha",
+            "content": conteudo_b64,
+            "branch": "main"
+        }
+        if sha:
+            payload["sha"] = sha
 
-    r = requests.put(url, headers=headers, json=payload)
+        r = requests.put(url, headers=headers, json=payload)
 
-    # Log de erro detalhado
-    if r.status_code not in [200, 201]:
-        st.error(f"Erro ao enviar: {r.status_code}")
-        try:
-            st.text(r.json())
-        except:
-            st.text("Erro desconhecido ao interpretar a resposta da API.")
-    return r.status_code in [200, 201]
+        if r.status_code not in [200, 201]:
+            st.error(f"Erro ao enviar: {r.status_code}")
+            try:
+                st.json(r.json())
+            except Exception as e:
+                st.text(f"Erro ao interpretar resposta: {e}")
+        return r.status_code in [200, 201]
+
+    except Exception as e:
+        st.error("Erro inesperado ao tentar enviar para o GitHub.")
+        st.text(str(e))
+        return False
 
 # Botão para salvar
 if st.button("✅ Salvar Registro"):
