@@ -1,100 +1,37 @@
+
 import streamlit as st
 import pandas as pd
-from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# Configuração da página
-st.set_page_config(page_title="Registro Transferência", layout="centered")
-st.title("🚚 Registro de Transferência de Carga")
-
 # Autenticação com Google Sheets
-scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-
+scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
 credenciais_dict = {
     "type": "service_account",
-    "project_id": "novatransferencia",
-    "private_key_id": "e0655f862376f9d30f60fa84b94e26cda2ed4263",
-    "private_key": "-----BEGIN PRIVATE KEY-----\\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQC8Yla4VMd6KLDx\\n...\\n-----END PRIVATE KEY-----\\n",
-    "client_email": "novatransferencia@novatransferencia.iam.gserviceaccount.com",
-    "client_id": "114919807716623426202",
+    "project_id": "seu-projeto-id",
+    "private_key_id": "sua-private-key-id",
+    "private_key": "-----BEGIN PRIVATE KEY-----\\nSUA\\nCHAVE\\nAQUI\\n-----END PRIVATE KEY-----\\n",
+    "client_email": "seu-email@seu-projeto.iam.gserviceaccount.com",
+    "client_id": "seu-client-id",
     "auth_uri": "https://accounts.google.com/o/oauth2/auth",
     "token_uri": "https://oauth2.googleapis.com/token",
     "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
-    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/novatransferencia%40novatransferencia.iam.gserviceaccount.com",
-    "universe_domain": "googleapis.com"
+    "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/seu-email%40seu-projeto.iam.gserviceaccount.com"
 }
+credenciais = ServiceAccountCredentials.from_json_keyfile_dict(credenciais_dict, scope)
+cliente = gspread.authorize(credenciais)
 
-creds = ServiceAccountCredentials.from_json_keyfile_dict(credenciais_dict, scope)
-client = gspread.authorize(creds)
+# Nome da planilha
+nome_planilha = "NomeDaSuaPlanilha"
+planilha = cliente.open(nome_planilha).sheet1
 
-# ID da planilha e nome da aba
-SHEET_ID = "1wlPpdjqAXwLfrYqnOp1AE9Ez_gTrcYcT3AD9VB6sMAY"
-SHEET_NAME = "Página1"
-sheet = client.open_by_key(SHEET_ID).worksheet(SHEET_NAME)
+# Função para carregar dados
+def carregar_dados():
+    dados = planilha.get_all_records()
+    return pd.DataFrame(dados)
 
-# Função para registrar timestamp atual
-def registrar_tempo(label):
-    if st.button(f"Registrar {label}"):
-        st.session_state[label] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-# Campos de tempo
-campos_tempo = [
-    "Entrada na Fábrica", "Encostou na doca Fábrica", "Início carregamento", "Fim carregamento",
-   arração carga", "Saída do pátio", "Entrada CD", "Encostou na doca CD",
-    "Início Descarregamento CD", "Fim Descarregamento CD", "Saída CD"
-]
-
-# Inicializar variáveis de sessão
-for campo in campos_tempo:
-    if campo not in st.session_state:
-        st.session_state[campo] = ""
-
-# Campos manuais
-st.subheader("Dados do Veículo")
-data = st.date_input("Data", value=datetime.today())
-placa = st.text_input("Placa do caminhão")
-conferente = st.text_input("Nome do conferente")
-
-# Campos com botões
-st.subheader("Fábrica")
-for campo in campos_tempo[:7]:
-    registrar_tempo(campo)
-    st.text_input(campo, value=st.session_state[campo], disabled=True)
-
-st.subheader("Centro de Distribuição (CD)")
-for campo in campos_tempo[7:]:
-    registrar_tempo(campo)
-    st.text_input(campo, value=st.session_state[campo], disabled=True)
-
-# Calcular tempos automáticos
-def calc_tempo(fim, inicio):
-    try:
-        t1 = datetime.strptime(st.session_state[fim], "%Y-%m-%d %H:%M:%S")
-        t0 = datetime.strptime(st.session_state[inicio], "%Y-%m-%d %H:%M:%S")
-        return str(t1 - t0)
-    except:
-        return ""
-
-tempo_carreg = calc_tempo("Fim carregamento", "Início carregamento")
-tempo_espera = calc_tempo("Encostou na doca Fábrica", "Entrada na Fábrica")
-tempo_total = calc_tempo("Saída do pátio", "Entrada na Fábrica")
-tempo_descarga = calc_tempo("Fim Descarregamento CD", "Início Descarregamento CD")
-tempo_espera_cd = calc_tempo("Encostou na doca CD", "Entrada CD")
-tempo_total_cd = calc_tempo("Saída CD", "Entrada CD")
-tempo_percurso = calc_tempo("Entrada CD", "Saída do pátio")
-
-# Botão para salvar
-if st.button("✅ Salvar Registro"):
-    nova_linha = [
-        str(data), placa, conferente,
-        *[st.session_state[campo] for campo in campos_tempo],
-        tempo_carreg, tempo_espera, tempo_total,
-        tempo_descarga, tempo_espera_cd, tempo_total_cd, tempo_percurso
-    ]
-
-    sheet.append_row(nova_linha)
-    st.success("Registro salvo com sucesso!")
-
-    for campo in campos_tempo:
-        st.session_state[campo] = ""
+# Interface Streamlit
+st.title("Visualizador de Dados do Google Sheets")
+if st.button("Carregar dados"):
+    df = carregar_dados()
+    st.dataframe(df)
